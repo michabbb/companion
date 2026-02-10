@@ -39,7 +39,7 @@ export class CliLauncher {
 
   /**
    * Launch a new Claude Code CLI session.
-   * The CLI will connect back to ws://localhost:{port}/ws/cli/{sessionId}
+   * The CLI will connect back to ws://{host}:{port}/ws/cli/{sessionId}
    */
   launch(options: LaunchOptions = {}): SdkSessionInfo {
     const sessionId = randomUUID();
