@@ -29,15 +29,17 @@ export interface LaunchOptions {
 export class CliLauncher {
   private sessions = new Map<string, SdkSessionInfo>();
   private processes = new Map<string, Subprocess>();
+  private host: string;
   private port: number;
 
-  constructor(port: number) {
+  constructor(host: string, port: number) {
+    this.host = host;
     this.port = port;
   }
 
   /**
    * Launch a new Claude Code CLI session.
-   * The CLI will connect back to ws://localhost:{port}/ws/cli/{sessionId}
+   * The CLI will connect back to ws://{host}:{port}/ws/cli/{sessionId}
    */
   launch(options: LaunchOptions = {}): SdkSessionInfo {
     const sessionId = randomUUID();
@@ -52,8 +54,14 @@ export class CliLauncher {
       }
     }
 
-    const sdkUrl = `ws://localhost:${this.port}/ws/cli/${sessionId}`;
+    // Use a safe host for the SDK URL; binding to 0.0.0.0/:: is common but
+    // those are not generally valid as client destination addresses.
+    let connectHost = this.host;
+    if (connectHost === "0.0.0.0" || connectHost === "::" || connectHost === "[::]") {
+      connectHost = "127.0.0.1";
+    }
 
+    const sdkUrl = `ws://${connectHost}:${this.port}/ws/cli/${sessionId}`;
     const args: string[] = [
       "--sdk-url", sdkUrl,
       "--print",

@@ -14,9 +14,33 @@ import type { ServerWebSocket } from "bun";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageRoot = process.env.__VIBE_PACKAGE_ROOT || resolve(__dirname, "..");
 
+function getValidatedHost(envHost: string | undefined): string {
+  const fallbackHost = "127.0.0.1";
+
+  if (!envHost) {
+    return fallbackHost;
+  }
+
+  const trimmed = envHost.trim();
+
+  if (!trimmed) {
+    return fallbackHost;
+  }
+
+  // Disallow any whitespace inside the host value to avoid confusing Bun.serve errors.
+  if (/\s/.test(trimmed)) {
+    throw new Error(
+      `Invalid HOST environment variable "${envHost}": value must not contain whitespace`,
+    );
+  }
+
+  return trimmed;
+}
+
 const port = Number(process.env.PORT) || 3456;
+const host = getValidatedHost(process.env.HOST);
 const wsBridge = new WsBridge();
-const launcher = new CliLauncher(port);
+const launcher = new CliLauncher(host, port);
 
 const app = new Hono();
 
@@ -30,7 +54,16 @@ if (process.env.NODE_ENV === "production") {
   app.get("/*", serveStatic({ path: resolve(distDir, "index.html") }));
 }
 
+// Security check: warn if binding to non-loopback interface
+if (host !== "127.0.0.1" && host !== "localhost" && host !== "::1") {
+  console.warn("\n⚠️  WARNING: Server is binding to a non-loopback interface!");
+  console.warn(`   Host: ${host}`);
+  console.warn("   This exposes powerful endpoints (session creation, filesystem access) without authentication.");
+  console.warn("   Only use this in trusted networks or behind proper authentication/firewall.\n");
+}
+
 const server = Bun.serve<SocketData>({
+  hostname: host,
   port,
   fetch(req, server) {
     const url = new URL(req.url);
@@ -89,9 +122,17 @@ const server = Bun.serve<SocketData>({
   },
 });
 
-console.log(`Server running on http://localhost:${server.port}`);
-console.log(`  CLI WebSocket:     ws://localhost:${server.port}/ws/cli/:sessionId`);
-console.log(`  Browser WebSocket: ws://localhost:${server.port}/ws/browser/:sessionId`);
+// Determine the display host for console output
+// When binding to 0.0.0.0 or ::, show localhost as the connectable address
+let displayHost = host;
+if (host === "0.0.0.0" || host === "::" || host === "[::]") {
+  displayHost = "localhost";
+  console.log(`Server bound to ${host}:${server.port} (all interfaces)`);
+}
+
+console.log(`Server running on http://${displayHost}:${server.port}`);
+console.log(`  CLI WebSocket:     ws://${displayHost}:${server.port}/ws/cli/:sessionId`);
+console.log(`  Browser WebSocket: ws://${displayHost}:${server.port}/ws/browser/:sessionId`);
 
 // In dev mode, log that Vite should be run separately
 if (process.env.NODE_ENV !== "production") {
