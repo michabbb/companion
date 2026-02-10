@@ -30,9 +30,11 @@ export class CliLauncher {
   private sessions = new Map<string, SdkSessionInfo>();
   private processes = new Map<string, Subprocess>();
   private port: number;
+  private host: string;
 
-  constructor(port: number) {
+  constructor(port: number, host: string = "127.0.0.1") {
     this.port = port;
+    this.host = host;
   }
 
   /**
@@ -52,7 +54,7 @@ export class CliLauncher {
       }
     }
 
-    const sdkUrl = `ws://localhost:${this.port}/ws/cli/${sessionId}`;
+    const sdkUrl = `ws://${this.host}:${this.port}/ws/cli/${sessionId}`;
 
     const args: string[] = [
       "--sdk-url", sdkUrl,
