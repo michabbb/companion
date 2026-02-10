@@ -30,14 +30,16 @@ export class CliLauncher {
   private sessions = new Map<string, SdkSessionInfo>();
   private processes = new Map<string, Subprocess>();
   private port: number;
+  private host: string;
 
-  constructor(port: number) {
+  constructor(port: number, host: string = "127.0.0.1") {
     this.port = port;
+    this.host = host;
   }
 
   /**
    * Launch a new Claude Code CLI session.
-   * The CLI will connect back to ws://localhost:{port}/ws/cli/{sessionId}
+   * The CLI will connect back to ws://{host}:{port}/ws/cli/{sessionId}
    */
   launch(options: LaunchOptions = {}): SdkSessionInfo {
     const sessionId = randomUUID();
@@ -52,7 +54,7 @@ export class CliLauncher {
       }
     }
 
-    const sdkUrl = `ws://localhost:${this.port}/ws/cli/${sessionId}`;
+    const sdkUrl = `ws://${this.host}:${this.port}/ws/cli/${sessionId}`;
 
     const args: string[] = [
       "--sdk-url", sdkUrl,
